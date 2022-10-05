@@ -1,0 +1,55 @@
+name: Release Build
+on:
+  workflow_dispatch:
+jobs:
+  Build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Checking version
+        id: version
+        run: |
+          echo ::set-output name=release::$(cat module.prop | grep version= | awk -F'=' '{print $2}')
+          echo ::set-output name=releaseCode::$(cat module.prop | grep versionCode= | awk -F'=' '{print $2}')
+      - name: Build
+        run: zip -r Magisk-iOS-Emoji_${{ steps.version.outputs.release}}.zip ./ -x '*.git*' -x '*.json'
+      - name: Delete tag ${{ steps.version.outputs.release}} if exists
+        uses: dev-drprasad/delete-tag-and-release@v0.2.0
+        with:
+          delete_release: true
+          tag_name: ${{ steps.version.outputs.release}}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Tag Release
+        uses: richardsimko/update-tag@v1
+        with:
+          tag_name: ${{ steps.version.outputs.release}}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload Release
+        uses: JeelsBoobz/action-gh-release@v2
+        if: success()
+        with:
+          tag_name: ${{ steps.version.outputs.release}}
+          files: ./*.zip
+          draft: false
+          body_path: ./Changelog.md
+      - name: Update changelog and Magisk update jsons
+        id: update_config
+        run: |
+          CHANGELOG_URL="https://raw.githubusercontent.com/$GITHUB_REPOSITORY/update/Changelog.md"
+          get_update_json() {
+            echo "{
+            \"version\": \"${{ steps.version.outputs.release}}\",
+            \"versionCode\": ${{ steps.version.outputs.releaseCode}},
+            \"zipUrl\": \"https://github.com/$GITHUB_REPOSITORY/releases/${{ steps.version.outputs.release}}/Magisk-iOS-Emoji_${{ steps.version.outputs.release}}.zip\",
+            \"changelog\": \"$CHANGELOG_URL\"
+          }"
+          }
+          echo $(get_update_json) > updater.json
+      - uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          branch: update
+          skip_checkout: true
+          file_pattern: Changelog.md *.json
+          commit_message: Bump version ${{ steps.version.outputs.release}}

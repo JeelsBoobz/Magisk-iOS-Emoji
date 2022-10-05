@@ -24,7 +24,7 @@ REPLACE="
 
 print_modname() {
   ui_print "*******************************"
-  ui_print "        iOS Emoji 15.4.6       "
+  ui_print "        iOS Emoji v1.0.0       "
   ui_print "*******************************"
 }
 
@@ -36,8 +36,19 @@ on_install() {
   FONT_DIR=$MODPATH/system/fonts
   FONT_EMOJI="NotoColorEmoji.ttf"
   ui_print "- Extracting module files"
-  ui_print "- Installing Emojis"
-  unzip -o "$ZIPFILE" 'system/*' -d $MODPATH >&2
+  
+  #Create folder fonts
+  if [ ! -d "$MODPATH/system" ]; then
+    mkdir $MODPATH/system
+  fi
+  if [ ! -d "$MODPATH/system/fonts" ]; then
+    mkdir $MODPATH/system/fonts
+  fi
+  
+  #Download latest IOS Emoji
+  VERSION_EMOJI=$(curl -fsSL https://github.com/samuelngs/apple-emoji-linux/releases | grep -oE "ios-[0-9]+\.[0-9]+" | head -1)
+  ui_print "- Installing emoji $VERSION_EMOJI"
+  curl -sL https://github.com/samuelngs/apple-emoji-linux/releases/download/$VERSION_EMOJI/AppleColorEmoji.ttf -o $MODPATH/system/fonts/$FONT_EMOJI
 
   #Compatibility with different devices and potential Android 13?
   variants='SamsungColorEmoji.ttf LGNotoColorEmoji.ttf HTC_ColorEmoji.ttf AndroidEmoji-htc.ttf ColorUniEmoji.ttf DcmColorEmoji.ttf CombinedColorEmoji.ttf NoyoColorEmojiLegacy.ttf'
